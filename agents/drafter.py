@@ -1,5 +1,5 @@
+import re
 from pydantic import BaseModel, Field, ValidationError
-
 import trail
 from agents.prompts import DRAFTER_SYSTEM
 from config import settings
@@ -17,9 +17,22 @@ class DraftOut(BaseModel):
     claims: list[DraftClaim] = Field(default_factory=list)
 
 
-def select_chunks(chunks: list[Chunk], limit: int) -> list[Chunk]:
-    """Best sources first. Stable sort keeps retrieval order within a tier."""
-    return sorted(chunks, key=lambda c: -c.tier)[:limit]
+def _words(s: str) -> set[str]:
+    return set(re.findall(r"[a-z0-9]+", s.lower()))
+
+
+def too_similar(text: str, others: list[str], threshold: float = 0.7) -> bool:
+    a = _words(text)
+    for other in others:
+        b = _words(other)
+        if a and b and len(a & b) / len(a | b) >= threshold:
+            return True
+    return False
+
+
+def select_chunks(chunks: list[Chunk], limit: int, avoid: frozenset | set = frozenset()) -> list[Chunk]:
+    """Uncited chunks first, then best sources first."""
+    return sorted(chunks, key=lambda c: (c.id in avoid, -c.tier))[:limit]
 
 
 def _format_chunks(chunks: list[Chunk]) -> str:
@@ -39,10 +52,10 @@ def draft_subquestion(run_id: str, sq: SubQuestion, round_: int = 0) -> int:
                   reason="no stored evidence for this sub-question", sub_q=sq.id, round=round_)
         return 0
 
-    chunks = select_chunks(all_chunks, settings.drafter_max_chunks)
-    shown_ids = {c.id for c in chunks}
-
     prior = store.list_claims(run_id, sq.id)
+    cited = {eid for c in prior for eid in c.evidence_ids}
+    chunks = select_chunks(all_chunks, settings.drafter_max_chunks, avoid=cited)
+    shown_ids = {c.id for c in chunks}
     covered = [c.text for c in prior if c.verdict in ("supported", "partial")]
     rejected = [c.text for c in prior if c.verdict in ("unsupported", "contradicted")]
 
@@ -76,11 +89,11 @@ def draft_subquestion(run_id: str, sq: SubQuestion, round_: int = 0) -> int:
                   reason="invalid output twice", sub_q=sq.id, round=round_)
         return 0
 
-    existing = {t.lower() for t in covered + rejected}
+    existing = [c.text for c in store.list_claims(run_id)]
     saved = 0
     for item in parsed.claims[: settings.max_claims_per_subq]:
         text = " ".join(item.claim.split())
-        if text.lower() in existing:
+        if too_similar(text, existing):
             continue
 
         valid = [i for i in dict.fromkeys(item.evidence_ids) if i in shown_ids]
@@ -95,7 +108,7 @@ def draft_subquestion(run_id: str, sq: SubQuestion, round_: int = 0) -> int:
                       reason="removed unknown evidence IDs", sub_q=sq.id, bad_ids=invalid)
 
         claim = store.save_claim(run_id, sq.id, text, valid, round_=round_)
-        existing.add(text.lower())
+        existing.append(text)
         saved += 1
         trail.log(run_id, "drafter", "claim_drafted",
                   sub_q=sq.id, claim_id=claim.id, evidence_ids=valid, round=round_)

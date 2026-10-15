@@ -2,7 +2,7 @@ import threading
 import re
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
-
+from textcheck import coverage
 from pydantic import ValidationError
 
 import trail
@@ -18,6 +18,9 @@ WORKERS = 4
 
 
 _out_of_credit = threading.Event()
+
+def out_of_credit() -> bool:
+    return _out_of_credit.is_set()
 
 _CHAR_MAP = str.maketrans({
     "\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"',
@@ -59,8 +62,10 @@ def numbers(s: str) -> set[str]:
     return {m.group().replace(",", "") for m in _NUMBER.finditer(s)}
 
 
-def apply_checks(claim: Claim, chunks: list[Chunk], v: Verdict) -> tuple[Verdict, bool]:
-    """Code has the final say. Returns (final verdict, whether code overrode the model)."""
+
+def apply_checks(claim: Claim, chunks: list[Chunk], v: Verdict, allowed_numbers: frozenset | set = frozenset()) -> tuple[Verdict, bool]:
+    """Code has the final say. Returns (final verdict, whether code overrode the model).
+    allowed_numbers: numbers the user's own question already contains (e.g. the year)."""
     if v.verdict not in ("supported", "partial"):
         return v, False
 
@@ -69,11 +74,21 @@ def apply_checks(claim: Claim, chunks: list[Chunk], v: Verdict) -> tuple[Verdict
         return Verdict(verdict="unsupported", quote="", reason=reason[:500]), True
 
     if v.verdict == "supported":
-        missing = numbers(claim.text) - numbers(v.quote)
+        missing = numbers(claim.text) - numbers(v.quote) - set(allowed_numbers)
         if missing:
             reason = f"claim has number(s) not in the quote: {sorted(missing)}"
             return Verdict(verdict="partial", quote=v.quote, reason=reason), True
+        cov = coverage(claim.text, v.quote, ignore_text=" ".join(allowed_numbers))
+        if cov < settings.min_quote_coverage:
+            reason = f"quote covers only {cov:.0%} of the claim's wording; the claim goes beyond its source"
+            return Verdict(verdict="partial", quote=v.quote, reason=reason), True
     return v, False
+
+
+def allowed_numbers_for(run_id: str, claim: Claim) -> set[str]:
+    run = store.get_run(run_id)
+    sq = next((s for s in store.list_sub_questions(run_id) if s.id == claim.sub_q_id), None)
+    return numbers(run["question"]) | (numbers(sq.text) if sq else set())
 
 
 # ---------- the LLM judgement ----------
@@ -129,11 +144,10 @@ def verify(run_id: str, round_: int = 0) -> dict:
     for (claim, chunks), (verdict, error) in zip(jobs, results):
         if verdict is None:
             counts["error"] += 1
-            trail.log(run_id, "verifier", "verify_error", reason=error or "unknown",
-                      claim_id=claim.id, sub_q=claim.sub_q_id, round=round_)
+            trail.log(run_id, "verifier", "verify_error", reason=error or "unknown",claim_id=claim.id, sub_q=claim.sub_q_id, round=round_)
             continue
 
-        final, overridden = apply_checks(claim, chunks, verdict)
+        final, overridden = apply_checks(claim, chunks, verdict, allowed_numbers_for(run_id, claim))
         store.set_claim_verdict(run_id, claim.id, final.verdict, final.quote, final.reason)
         counts[final.verdict] += 1
         trail.log(
@@ -151,24 +165,59 @@ def verify(run_id: str, round_: int = 0) -> dict:
         print("\n!! Mesh balance exhausted. Top up and re-run: pending claims will resume.")
     return summary
 
+def reset_weak(run_id: str) -> int:
+    """Send claims back to 'pending' when their quote doesn't cover the claim's numbers,
+    so they get re-judged with the stricter prompt."""
+    n = 0
+    for c in store.list_claims(run_id):
+        weak_supported = c.verdict == "supported" and (
+            numbers(c.text) - numbers(c.quote) - allowed_numbers_for(run_id, c))
+        number_partial = c.verdict == "partial" and c.reason.startswith("claim has number(s)")
+        if weak_supported or number_partial:
+            store.set_claim_verdict(run_id, c.id, "pending", "", "")
+            trail.log(run_id, "verifier", "claim_reset", claim_id=c.id,
+                      reason="quote did not cover the claim; re-verifying")
+            n += 1
+    return n
+
+
+def recheck_supported(run_id: str) -> int:
+    changed = 0
+    for c in store.list_claims(run_id, verdict="supported"):
+        chunks = store.get_chunks(run_id, c.evidence_ids)
+        final, _ = apply_checks(
+            c, chunks, Verdict(verdict="supported", quote=c.quote, reason=c.reason),
+            allowed_numbers_for(run_id, c),
+        )
+        if final.verdict != "supported":
+            store.set_claim_verdict(run_id, c.id, final.verdict, final.quote, final.reason)
+            trail.log(run_id, "verifier", "claim_downgraded", reason=final.reason,
+                      claim_id=c.id, sub_q=c.sub_q_id)
+            changed += 1
+    return changed
+
+
 
 if __name__ == "__main__":
-    # Verifies the pending claims of your latest run (or pass a run id):
-    #   uv run python -m agents.verifier
+    #   uv run python -m agents.verifier                    (pending claims, latest run)
+    #   uv run python -m agents.verifier --reverify-weak    (reset weak claims first)
     import sys
     from db.connection import init_db
 
     init_db()
-    rid = sys.argv[1] if len(sys.argv) > 1 else store.latest_run_id()
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    rid = args[0] if args else store.latest_run_id()
+    if "--recheck" in sys.argv:
+        print(f"Downgraded {recheck_supported(rid)} supported claims (no LLM calls)")
+        raise SystemExit
+    if "--reverify-weak" in sys.argv:
+        print(f"Reset {reset_weak(rid)} claims to pending; re-verifying them now")
+
     summary = verify(rid)
     total = sum(summary.values()) - summary["error"]
     print(f"Run {rid}: {summary}")
     if total:
         print(f"Pass rate: {summary['supported']}/{total} = {summary['supported'] / total:.0%}")
-
     for c in store.list_claims(rid):
         if c.verdict in ("unsupported", "contradicted", "partial"):
             print(f"\n[{c.verdict.upper()}] {c.id}: {c.text}\n    why: {c.reason}")
-    print("\n--- sample of supported claims ---")
-    for c in [c for c in store.list_claims(rid, verdict="supported")][:3]:
-        print(f"\n{c.id}: {c.text}\n    quote: \"{c.quote}\"")

@@ -22,6 +22,8 @@ DOMAIN_TIERS: dict[str, float] = {
     "medium.com": 0.3, "substack.com": 0.3, "blogspot.com": 0.3,
     "wordpress.com": 0.3, "quora.com": 0.3, "reddit.com": 0.3,
     "tumblr.com": 0.3, "wixsite.com": 0.3, "weebly.com": 0.3,
+    "technologyreview.com": 0.8, "woodmac.com": 0.7, "morganlewis.com": 0.7,
+    "marketsandmarkets.com": 0.6,
 }
 
 # Government, university, military, and treaty-body domains, e.g. data.gov.uk, mit.edu, ox.ac.uk

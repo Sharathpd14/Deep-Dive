@@ -140,3 +140,48 @@ def test_missing_evidence_is_rejected_without_calling_the_llm(monkeypatch):
     store.save_claim(run_id, "Q1", "A claim citing evidence that does not exist.", ["E42"])
     monkeypatch.setattr(verifier, "chat_json", lambda *a, **k: pytest.fail("should not be called"))
     assert verifier.verify(run_id)["unsupported"] == 1
+    
+    
+def test_quote_that_covers_only_part_of_the_claim_is_downgraded():
+    chunk = _chunk("Sodium-ion is entering limited vehicle and storage deployment, analysts say today.")
+    claim = _claim("Sodium-ion batteries are entering limited vehicle deployment, "
+                   "but their energy density is lower compared to other battery types.")
+    v = Verdict(verdict="supported",
+                quote="Sodium-ion is entering limited vehicle and storage deployment", reason="ok")
+    final, overridden = verifier.apply_checks(claim, [chunk], v)
+    assert final.verdict == "partial" and overridden and "covers only" in final.reason
+
+
+def test_recheck_supported_downgrades_without_calling_the_llm(monkeypatch, run_with_claims):
+    run_id, good, bad = run_with_claims
+    store.set_claim_verdict(run_id, good.id, "supported", "demand reached 950 GWh in 2024", "ok")
+    store.set_claim_verdict(run_id, bad.id, "supported", "demand reached 950 GWh in 2024", "ok")
+    monkeypatch.setattr(verifier, "chat_json", lambda *a, **k: pytest.fail("no LLM calls allowed"))
+    assert verifier.recheck_supported(run_id) == 1
+    verdicts = {c.id: c.verdict for c in store.list_claims(run_id)}
+    assert verdicts[good.id] == "supported" and verdicts[bad.id] == "partial"
+    
+
+def test_number_nowhere_in_source_is_still_flagged():
+    v = Verdict(verdict="supported", quote="demand reached 950 GWh in 2024", reason="ok")
+    final, overridden = verifier.apply_checks(
+        _claim("Demand reached 950 GWh in 2024 and will hit 2026 targets."), [_chunk()], v)
+    assert final.verdict == "partial" and overridden
+
+
+def test_year_from_the_question_is_not_held_against_the_claim():
+    v = Verdict(verdict="supported", quote="demand reached 950 GWh in 2024", reason="ok")
+    claim = _claim("In 2026, demand reached 950 GWh in 2024.")
+    final, _ = verifier.apply_checks(claim, [_chunk()], v, allowed_numbers={"2026"})
+    assert final.verdict == "supported"
+    final, _ = verifier.apply_checks(claim, [_chunk()], v)
+    assert final.verdict == "partial"
+
+
+def test_reset_weak_sends_uncovered_claims_back_to_pending(run_with_claims):
+    run_id, good, bad = run_with_claims
+    store.set_claim_verdict(run_id, good.id, "supported", "demand reached 950 GWh in 2024", "ok")
+    store.set_claim_verdict(run_id, bad.id, "supported", "demand reached 950 GWh in 2024", "ok")
+    assert verifier.reset_weak(run_id) == 1
+    verdicts = {c.id: c.verdict for c in store.list_claims(run_id)}
+    assert verdicts[good.id] == "supported" and verdicts[bad.id] == "pending"

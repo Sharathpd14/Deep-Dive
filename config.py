@@ -7,10 +7,11 @@ class Settings(BaseSettings):
     mesh_api_key: str
     mesh_base_url: str = "https://api.meshapi.ai/v1"
 
-    planner_model: str = "openai/gpt-4.1-nano"
-    drafter_model: str = "openai/gpt-4.1-nano"
-    verifier_model: str = "openai/gpt-4.1-nano"
+    planner_model: str = "openai/gpt-4o-mini"
+    drafter_model: str = "openai/gpt-4o-mini"
+    verifier_model: str = "openai/gpt-4o-mini"
     cheap_model: str = "openai/gpt-4o-mini"
+    synthesizer_model: str = "openai/gpt-4o"
 
     max_loops: int = 2
     min_verified_claims: int = 2
@@ -24,4 +25,6 @@ class Settings(BaseSettings):
 
     drafter_max_chunks: int = 12
     max_claims_per_subq: int = 6
+    min_quote_coverage: float = 0.7
+    min_sentence_coverage: float = 0.85
 settings = Settings()

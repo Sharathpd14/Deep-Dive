@@ -88,3 +88,18 @@ def test_rejected_claims_are_shown_and_not_repeated(monkeypatch, run_with_eviden
     texts = [c.text for c in store.list_claims(run_id)]
     assert texts.count("The market is enormous and growing fast.") == 1   # not re-added
     assert "Demand reached 950 GWh in 2024." in texts
+    
+    
+def test_near_duplicate_claims_are_saved_once(monkeypatch, run_with_evidence):
+    run_id, _ = run_with_evidence
+    monkeypatch.setattr(drafter, "chat_json", _fake({"claims": [
+        {"claim": "Demand reached 950 GWh in 2024 according to the IEA.", "evidence_ids": ["E2"]},
+        {"claim": "According to the IEA, demand reached 950 GWh in 2024.", "evidence_ids": ["E2"]},
+    ]}))
+    assert drafter.draft(run_id) == {"Q1": 1}
+    
+def test_uncited_chunks_are_shown_first(run_with_evidence):
+    run_id, sq = run_with_evidence
+    chunks = store.list_evidence(run_id, sq.id)
+    picked = drafter.select_chunks(chunks, 1, avoid={"E2"})      # E2 is the high-tier chunk, already cited
+    assert [c.id for c in picked] == ["E1"]
