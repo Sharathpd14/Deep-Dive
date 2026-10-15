@@ -22,4 +22,6 @@ class Settings(BaseSettings):
     chunk_overlap: int = 200
     fetch_timeout: float = 15.0
 
+    drafter_max_chunks: int = 12
+    max_claims_per_subq: int = 6
 settings = Settings()

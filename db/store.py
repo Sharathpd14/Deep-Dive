@@ -231,3 +231,8 @@ def list_events(run_id: str, after_id: int = 0) -> list[TrailEvent]:
         )
         for r in rows
     ]
+    
+def latest_run_id() -> str | None:
+    with get_conn() as conn:
+        row = conn.execute("SELECT id FROM runs ORDER BY created_at DESC, rowid DESC LIMIT 1").fetchone()
+    return row["id"] if row else None
