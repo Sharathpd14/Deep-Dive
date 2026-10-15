@@ -69,6 +69,7 @@ def plan(run_id: str, question: str) -> list[SubQuestion]:
 if __name__ == "__main__":
     # Manual check: uv run python -m agents.planner "What are the main risks of investing in EV batteries in 2026?"
     import sys
+
     from db.connection import init_db
 
     init_db()

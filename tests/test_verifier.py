@@ -1,8 +1,7 @@
 import pytest
 
-import db.connection as connection
 from agents import verifier
-from db import store
+from db import connection, store
 from models import Chunk, Claim, Verdict
 
 SOURCE = ("According to the IEA, global EV battery demand reached 950 GWh in 2024, "

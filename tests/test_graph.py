@@ -1,9 +1,8 @@
 import pytest
 
-import db.connection as connection
 import graph
 from config import settings
-from db import store
+from db import connection, store
 
 
 @pytest.fixture(autouse=True)
@@ -107,7 +106,7 @@ def test_out_of_credit_stops_the_loop(fake_agents, monkeypatch):
 
 
 def test_resume_skips_planning_and_loops_on_thin_subquestions(fake_agents):
-    first = graph.run_pipeline("What drives demand?")
+    graph.run_pipeline("What drives demand?")
     # Pretend the first run was cut short: wipe Q2's second domain by starting a fresh partial run.
     run_id = store.create_run("Resumed question")
     store.add_sub_question(run_id, "Who are the key players?", ["players"])
@@ -132,3 +131,10 @@ def test_feedback_names_the_rejection_reasons_and_the_domain_gap():
     joined = " ".join(graph.build_feedback(run_id, ["Q1"])["Q1"])
     assert "covers only 30%" in joined
     assert "domain" in joined
+    
+    
+def test_a_queued_run_without_a_plan_is_planned_first(fake_agents):
+    run_id = store.create_run("What drives demand?")
+    graph.run_pipeline(run_id=run_id)
+    assert len(store.list_sub_questions(run_id)) == 2
+    assert store.get_run(run_id)["status"] == "done"

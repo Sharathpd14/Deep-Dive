@@ -90,6 +90,7 @@ def research(
 if __name__ == "__main__":
     # uv run python -m agents.researcher "your question"
     import sys
+
     from agents.planner import plan
     from db.connection import init_db
 

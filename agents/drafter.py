@@ -1,5 +1,7 @@
 import re
+
 from pydantic import BaseModel, Field, ValidationError
+
 import trail
 from agents.prompts import DRAFTER_SYSTEM
 from config import settings
@@ -131,6 +133,7 @@ if __name__ == "__main__":
     #   uv run python -m agents.drafter            (latest run)
     #   uv run python -m agents.drafter <run_id>
     import sys
+
     from db.connection import init_db
 
     init_db()

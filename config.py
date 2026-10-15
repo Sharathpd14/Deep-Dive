@@ -27,4 +27,6 @@ class Settings(BaseSettings):
     max_claims_per_subq: int = 6
     min_quote_coverage: float = 0.7
     min_sentence_coverage: float = 0.85
+    max_concurrent_runs: int = 2
+    max_runs_per_hour: int = 10
 settings = Settings()

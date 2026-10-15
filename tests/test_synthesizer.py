@@ -1,9 +1,8 @@
 import pytest
 
-import db.connection as connection
 from agents import synthesizer
 from coverage import thin_subquestions
-from db import store
+from db import connection, store
 
 
 @pytest.fixture(autouse=True)

@@ -1,8 +1,7 @@
 import pytest
 
-import db.connection as connection
 from agents import drafter
-from db import store
+from db import connection, store
 
 
 @pytest.fixture(autouse=True)
@@ -29,7 +28,7 @@ def _fake(output, captured=None):
 
 
 def test_saves_claims_with_valid_citations(monkeypatch, run_with_evidence):
-    run_id, sq = run_with_evidence
+    run_id, _sq = run_with_evidence
     monkeypatch.setattr(drafter, "chat_json", _fake({"claims": [
         {"claim": "Demand reached 950 GWh in 2024.", "evidence_ids": ["E2"]},
     ]}))

@@ -1,9 +1,10 @@
 import re
 from pathlib import Path
-from agents.drafter import too_similar
-from pydantic import BaseModel, Field, ValidationError
-from textcheck import coverage
+
+from pydantic import BaseModel, Field
+
 import trail
+from agents.drafter import too_similar
 from agents.prompts import SYNTHESIZER_SYSTEM
 from agents.verifier import numbers
 from config import settings
@@ -11,10 +12,11 @@ from coverage import thin_subquestions
 from db import store
 from llm import chat_json
 from models import Claim, SubQuestion
+from textcheck import coverage
 
 CITE = re.compile(r"\[(C\d+)\]")
 RUN = re.compile(r"(?:\[C\d+\])+")
-SEGMENT = re.compile(r"(.+?)((?:\[C\d+\])+)\s*([.!?]?)", re.S)
+SEGMENT = re.compile(r"(.+?)((?:\[C\d+\])+)\s*([.!?]?)", re.DOTALL)
 
 
 class Conflict(BaseModel):
@@ -107,7 +109,7 @@ def write_section(run_id: str, question: str, sq: SubQuestion, claims: list[Clai
     conflicts: list[tuple[list[str], str]] = []
     try:
         out = SectionOut.model_validate(chat_json(messages, settings.synthesizer_model, temperature=0.2))
-    except Exception as e:                                   # API error, bad JSON, bad shape
+    except Exception as e:   # noqa: BLE001                                 # API error, bad JSON, bad shape
         trail.log(run_id, "synthesizer", "synthesis_failed",
                   reason=f"{type(e).__name__}: {e}"[:300], sub_q=sq.id)
         out = None
@@ -179,10 +181,12 @@ def synthesize(run_id: str) -> str:
     total = len(all_claims)
     parts = [
         f"# {question}",
-        f"**{counts['supported']} of {total} drafted claims passed verification** "
-        f"({counts['partial']} partially supported, {counts['unsupported']} unsupported, "
-        f"{counts['contradicted']} contradicted, {counts['pending']} unchecked). "
-        "Only verified claims appear in the report; the rest are listed in Appendix B.",
+        (
+            f"**{counts['supported']} of {total} drafted claims passed verification** "
+            f"({counts['partial']} partially supported, {counts['unsupported']} unsupported, "
+            f"{counts['contradicted']} contradicted, {counts['pending']} unchecked). "
+            "Only verified claims appear in the report; the rest are listed in Appendix B."
+        ),
         *sections,
     ]
     if conflict_lines:
@@ -240,6 +244,7 @@ def ground_sentences(text: str, by_id: dict[str, Claim], ignore_text: str = "") 
 if __name__ == "__main__":
     # uv run python -m agents.synthesizer            (latest run)
     import sys
+
     from db.connection import init_db
 
     init_db()

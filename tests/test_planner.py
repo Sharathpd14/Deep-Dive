@@ -1,8 +1,7 @@
 import pytest
 
-import db.connection as connection
 from agents import planner
-from db import store
+from db import connection, store
 
 
 @pytest.fixture(autouse=True)

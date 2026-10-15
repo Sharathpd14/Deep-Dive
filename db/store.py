@@ -236,3 +236,40 @@ def latest_run_id() -> str | None:
     with get_conn() as conn:
         row = conn.execute("SELECT id FROM runs ORDER BY created_at DESC, rowid DESC LIMIT 1").fetchone()
     return row["id"] if row else None
+
+
+# ---------- run management (used by the API) ----------
+
+def count_active_runs() -> int:
+    with get_conn() as conn:
+        return conn.execute(
+            "SELECT COUNT(*) FROM runs WHERE status IN ('queued', 'running')"
+        ).fetchone()[0]
+
+
+def count_runs_since(since_iso: str) -> int:
+    with get_conn() as conn:
+        return conn.execute(
+            "SELECT COUNT(*) FROM runs WHERE created_at >= ?", (since_iso,)
+        ).fetchone()[0]
+
+
+def fail_stale_runs() -> int:
+    """At startup, nothing can still be running: mark leftovers as failed."""
+    with get_conn() as conn:
+        cur = conn.execute(
+            "UPDATE runs SET status = 'failed', finished_at = ?, "
+            "error = 'server restarted while the run was in progress' "
+            "WHERE status IN ('queued', 'running')",
+            (utcnow(),),
+        )
+        return cur.rowcount
+
+
+def list_runs(limit: int = 8) -> list[dict]:
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT id, question, status, created_at FROM runs "
+            "ORDER BY created_at DESC, rowid DESC LIMIT ?", (limit,)
+        ).fetchall()
+    return [dict(r) for r in rows]

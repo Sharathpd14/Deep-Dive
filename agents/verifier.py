@@ -1,8 +1,8 @@
-import threading
 import re
+import threading
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
-from textcheck import coverage
+
 from pydantic import ValidationError
 
 import trail
@@ -11,6 +11,7 @@ from config import settings
 from db import store
 from llm import chat_json
 from models import Chunk, Claim, Verdict
+from textcheck import coverage
 
 MIN_QUOTE_CHARS = 20      # a quote shorter than this proves nothing
 MIN_PART_CHARS = 10       # each piece of a quote that uses "..." must be substantial
@@ -123,7 +124,7 @@ def _work(job: tuple[Claim, list[Chunk]]) -> tuple[Verdict | None, str | None]:
         return None, "skipped: account out of credit"
     try:
         return judge(claim, chunks), None
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         if "402" in str(e) or "spend_limit" in str(e):
             _out_of_credit.set()
         return None, f"{type(e).__name__}: {e}"[:300]
@@ -202,6 +203,7 @@ if __name__ == "__main__":
     #   uv run python -m agents.verifier                    (pending claims, latest run)
     #   uv run python -m agents.verifier --reverify-weak    (reset weak claims first)
     import sys
+
     from db.connection import init_db
 
     init_db()

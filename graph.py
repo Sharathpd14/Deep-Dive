@@ -157,16 +157,16 @@ def build_graph():
 def run_pipeline(question: str | None = None, run_id: str | None = None) -> str:
     """Run the whole graph. Pass run_id to resume an existing run: pending claims get
     verified, then thin sub-questions are looped on."""
-    resume = run_id is not None
-    if resume:
+    if run_id is not None:
         run = store.get_run(run_id)
         if not run:
             raise ValueError(f"No run with id {run_id}")
         question, start_round = run["question"], run["loop_count"]
+        resume = bool(store.list_sub_questions(run_id))      # already planned -> skip the planner
     else:
         if not question:
             raise ValueError("A question is required")
-        run_id, start_round = store.create_run(question), 0
+        run_id, start_round, resume = store.create_run(question), 0, False
 
     store.update_run(run_id, status="running", error=None)
     trail.log(run_id, "coordinator", "run_started",
