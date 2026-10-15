@@ -1,7 +1,9 @@
 import json
 import re
+
 from openai import OpenAI
 from tenacity import retry, stop_after_attempt, wait_exponential
+
 from config import settings
 
 client = OpenAI(base_url=settings.mesh_base_url, api_key=settings.mesh_api_key)
@@ -18,7 +20,7 @@ def chat_json(messages: list[dict], model: str, temperature: float = 0.0) -> dic
     msgs = list(messages)
     for attempt in range(2):
         raw = chat(msgs, model, temperature)
-        cleaned = re.sub(r"^```(?:json)?|```$", "", raw.strip(), flags=re.M).strip()
+        cleaned = re.sub(r"^```(?:json)?|```$", "", raw.strip(), flags=re.MULTILINE).strip()
         try:
             return json.loads(cleaned)
         except json.JSONDecodeError:
