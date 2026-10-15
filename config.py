@@ -7,9 +7,9 @@ class Settings(BaseSettings):
     mesh_api_key: str
     mesh_base_url: str = "https://api.meshapi.ai/v1"
 
-    planner_model: str = "openai/gpt-4o"
-    drafter_model: str = "openai/gpt-4o"
-    verifier_model: str = "openai/gpt-4o"
+    planner_model: str = "openai/gpt-4.1-nano"
+    drafter_model: str = "openai/gpt-4.1-nano"
+    verifier_model: str = "openai/gpt-4.1-nano"
     cheap_model: str = "openai/gpt-4o-mini"
 
     max_loops: int = 2

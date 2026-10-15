@@ -1,3 +1,4 @@
+import threading
 import re
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
@@ -14,6 +15,9 @@ from models import Chunk, Claim, Verdict
 MIN_QUOTE_CHARS = 20      # a quote shorter than this proves nothing
 MIN_PART_CHARS = 10       # each piece of a quote that uses "..." must be substantial
 WORKERS = 4
+
+
+_out_of_credit = threading.Event()
 
 _CHAR_MAP = str.maketrans({
     "\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"',
@@ -100,15 +104,20 @@ def _work(job: tuple[Claim, list[Chunk]]) -> tuple[Verdict | None, str | None]:
     claim, chunks = job
     if not chunks:
         return Verdict(verdict="unsupported", reason="cited evidence not found"), None
+    if _out_of_credit.is_set():
+        return None, "skipped: account out of credit"
     try:
         return judge(claim, chunks), None
-    except Exception as e:                    # one bad call must not kill the round
+    except Exception as e:
+        if "402" in str(e) or "spend_limit" in str(e):
+            _out_of_credit.set()
         return None, f"{type(e).__name__}: {e}"[:300]
 
 
 # ---------- the round ----------
 
 def verify(run_id: str, round_: int = 0) -> dict:
+    _out_of_credit.clear()
     """Verify every pending claim. Claims whose LLM call fails stay pending."""
     claims = store.list_claims(run_id, verdict="pending")
     jobs = [(c, store.get_chunks(run_id, c.evidence_ids)) for c in claims]
@@ -135,9 +144,11 @@ def verify(run_id: str, round_: int = 0) -> dict:
             code_override=overridden, evidence_ids=claim.evidence_ids, round=round_,
         )
 
-    summary = {k: counts.get(k, 0) for k in
-               ("supported", "partial", "unsupported", "contradicted", "error")}
+    summary = {k: counts.get(k, 0) for k in ("supported", "partial", "unsupported", "contradicted", "error")}
     trail.log(run_id, "verifier", "verify_round_done", reason=f"round {round_}", **summary)
+    if _out_of_credit.is_set():
+        trail.log(run_id, "verifier", "out_of_credit", reason="Mesh balance exhausted; remaining claims stay pending")
+        print("\n!! Mesh balance exhausted. Top up and re-run: pending claims will resume.")
     return summary
 
 
