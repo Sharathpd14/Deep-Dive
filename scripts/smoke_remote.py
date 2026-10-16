@@ -14,7 +14,14 @@ run_id = r.json()["run_id"]
 print("started", run_id)
 
 for _ in range(150):                       # up to about 10 minutes
-    d = httpx.get(f"{base}/runs/{run_id}", timeout=30).json()
+    response = httpx.get(f"{base}/runs/{run_id}", timeout=30)
+
+    print("HTTP status:", response.status_code)
+    print("Content-Type:", response.headers.get("content-type"))
+    print("Response body:", repr(response.text[:1000]))
+
+    response.raise_for_status()
+    d = response.json()
     print(f"  {d['status']:8} loops={d['loop_count']} claims={d['counts']}")
     if d["status"] in ("done", "failed"):
         print("error:", d["error"], "\nreport:", f"{base}/runs/{run_id}/report/view")
