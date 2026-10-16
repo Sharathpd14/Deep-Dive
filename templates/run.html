@@ -1,21 +1,24 @@
 {% extends "base.html" %}
 {% block title %}Run {{ run_id }}{% endblock %}
 {% block content %}
-<h1 id="question">Loading…</h1>
-<p>
-  <span id="status" class="badge queued">queued</span>
-  <span id="loops" class="muted"></span>
-  <span id="tally" class="muted"></span>
-  <a id="reportlink" href="#" hidden>Open the report →</a>
-</p>
-<p id="error" class="msg"></p>
+<div class="page-heading">
+  <p class="eyebrow">Research run</p>
+  <h1 id="question">Loading…</h1>
+  <div class="run-meta">
+    <span id="status" class="badge queued">queued</span>
+    <span id="loops" class="muted"></span>
+    <span id="tally" class="muted"></span>
+    <a id="reportlink" class="reportlink" href="#" hidden>Open the report →</a>
+  </div>
+  <p id="error" class="msg" role="status" aria-live="polite"></p>
+</div>
 
 <div class="grid">
-  <section class="card"><h2>Sub-questions</h2><ul id="subqs"></ul></section>
+  <section class="card"><h2>Sub-questions</h2><ul id="subqs" class="subqs"></ul></section>
   <section class="card"><h2>Decision trail</h2><ul id="trail" class="trail"></ul></section>
 </div>
 
-<div id="claims" class="grid" hidden style="margin-top:20px">
+<div id="claims" class="grid" hidden>
   <section class="card"><h2>Kept claims <span id="nkept" class="muted"></span></h2><div id="kept"></div></section>
   <section class="card"><h2>Rejected claims <span id="nrej" class="muted"></span></h2><div id="rejected"></div></section>
 </div>

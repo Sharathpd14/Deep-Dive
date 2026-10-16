@@ -6,5 +6,5 @@
   <a href="/runs/{{ run_id }}/report">View Markdown</a>
   <button onclick="window.print()">Print / save as PDF</button>
 </div>
-<article class="report">{{ body|safe }}</article>
+<article class="report" aria-label="Research report">{{ body|safe }}</article>
 {% endblock %}
