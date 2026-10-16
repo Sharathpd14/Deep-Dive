@@ -15,7 +15,7 @@
 
 <div class="grid">
   <section class="card"><h2>Sub-questions</h2><ul id="subqs" class="subqs"></ul></section>
-  <section class="card"><h2>Decision trail</h2><ul id="trail" class="trail"></ul></section>
+  <section class="card"><h2>Decision trail </h2><ul id="trail" class="trail"></ul></section>
 </div>
 
 <div id="claims" class="grid" hidden>
@@ -34,6 +34,16 @@ function el(tag, cls, text) {
   if (cls) e.className = cls;
   if (text !== undefined) e.textContent = text;
   return e;
+}
+
+function formatEventTime(timestamp) {
+  return new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date(timestamp));
 }
 
 function render(d) {
@@ -55,7 +65,7 @@ function render(d) {
   const stick = trail.scrollTop + trail.clientHeight >= trail.scrollHeight - 30;
   for (const ev of d.events) {
     const li = el('li', 'ev');
-    li.append(el('span', 'time', ev.ts.slice(11, 19)), el('span', 'agent', ev.agent),
+    li.append(el('span', 'time', formatEventTime(ev.ts)), el('span', 'agent', ev.agent),
               el('span', 'action', ev.action.replace(/_/g, ' ')), el('span', 'reason', ev.reason || ''));
     trail.append(li);
   }
