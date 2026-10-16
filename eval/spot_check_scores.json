@@ -1,0 +1,22 @@
+{
+  "labeled": 0,
+  "kept_n": 0,
+  "kept_yes": 0,
+  "kept_partial": 0,
+  "kept_no": 0,
+  "rejected_n": 0,
+  "rejected_yes": 0,
+  "rejected_partial": 0,
+  "rejected_no": 0,
+  "precision": null,
+  "precision_ci": [
+    0.0,
+    0.0
+  ],
+  "lenient_precision": null,
+  "false_reject_rate": null,
+  "false_reject_ci": [
+    0.0,
+    0.0
+  ]
+}
