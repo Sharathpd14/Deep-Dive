@@ -144,10 +144,6 @@ Control (correct claims left untouched): 100% still accepted after all checks (2
 Faults that got through (see `adversarial.json`):
 - *reversal*: "Reliance on DAC could increase the urgency of reducing emissions at the source."
 
-### 4. Blind human spot check
-
-_Not run yet._
-<!-- RESULTS:END -->
 
 ### How the evaluation works
 
@@ -210,11 +206,7 @@ docker compose up --build
 
 ## Deploy
 
-`render.yaml` is a Render Blueprint. Create a Blueprint from the repo, then enter `MESH_API_KEY` and `ACCESS_CODE` in the dashboard. The free tier has no persistent disk, so runs reset after idle. A finished example run is bundled in `demo_data/` and loaded at every startup. To keep data, use a paid instance and uncomment the disk block. Check the deployed URL with:
-
-```bash
-uv run python scripts/smoke_remote.py https://<your-service>.onrender.com <access-code>
-```
+`render.yaml` is a Render Blueprint. Create a Blueprint from the repo, then enter `MESH_API_KEY` and `ACCESS_CODE` in the dashboard. The free tier has no persistent disk, so runs reset after idle. A finished example run is bundled in `demo_data/` and loaded at every startup. To keep data, use a paid instance and uncomment the disk block.
 
 ## Configuration
 
