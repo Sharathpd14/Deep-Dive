@@ -1,6 +1,5 @@
-{% extends "base.html" %}
-{% block title %}Run {{ run_id }}{% endblock %}
-{% block content %}
+{% extends "base.html" %} {% block title %}Run {{ run_id }}{% endblock %} {%
+block content %}
 <h1 id="question">Loading…</h1>
 <p>
   <span id="status" class="badge queued">queued</span>
@@ -11,94 +10,109 @@
 <p id="error" class="msg"></p>
 
 <div class="grid">
-  <section class="card"><h2>Sub-questions</h2><ul id="subqs"></ul></section>
-  <section class="card"><h2>Decision trail</h2><ul id="trail" class="trail"></ul></section>
+  <section class="card">
+    <h2>Sub-questions</h2>
+    <ul id="subqs"></ul>
+  </section>
+  <section class="card">
+    <h2>Decision trail</h2>
+    <ul id="trail" class="trail"></ul>
+  </section>
 </div>
 
-<div id="claims" class="grid" hidden style="margin-top:20px">
-  <section class="card"><h2>Kept claims <span id="nkept" class="muted"></span></h2><div id="kept"></div></section>
-  <section class="card"><h2>Rejected claims <span id="nrej" class="muted"></span></h2><div id="rejected"></div></section>
+<div id="claims" class="grid" hidden style="margin-top: 20px">
+  <section class="card">
+    <h2>Kept claims <span id="nkept" class="muted"></span></h2>
+    <div id="kept"></div>
+  </section>
+  <section class="card">
+    <h2>Rejected claims <span id="nrej" class="muted"></span></h2>
+    <div id="rejected"></div>
+  </section>
 </div>
 
 <script>
-const RUN_ID = {{ run_id|tojson }};
-let after = 0, finished = false;
-const $ = (id) => document.getElementById(id);
+  const RUN_ID = {{ run_id|tojson }};
+  let after = 0, finished = false;
+  const $ = (id) => document.getElementById(id);
 
-// Everything below uses textContent, never innerHTML: trail and claim text comes from the web.
-function el(tag, cls, text) {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  if (text !== undefined) e.textContent = text;
-  return e;
-}
-
-function render(d) {
-  $('question').textContent = d.question;
-  const st = $('status'); st.textContent = d.status; st.className = 'badge ' + d.status;
-  $('loops').textContent = d.loop_count ? `· ${d.loop_count} research loop${d.loop_count > 1 ? 's' : ''}` : '';
-  const total = Object.values(d.counts).reduce((a, b) => a + b, 0);
-  $('tally').textContent = total ? `· ${d.counts.supported || 0} of ${total} claims verified` : '';
-  $('error').textContent = d.error || '';
-
-  const ul = $('subqs'); ul.replaceChildren();
-  for (const s of d.sub_questions) {
-    const li = el('li', '', s.text + ' ');
-    li.append(el('span', 'muted', `(${s.verified_claims} verified, ${s.domains} sources)`));
-    ul.append(li);
+  // Everything below uses textContent, never innerHTML: trail and claim text comes from the web.
+  function el(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
   }
 
-  const trail = $('trail');
-  const stick = trail.scrollTop + trail.clientHeight >= trail.scrollHeight - 30;
-  for (const ev of d.events) {
-    const li = el('li', 'ev');
-    li.append(el('span', 'time', ev.ts.slice(11, 19)), el('span', 'agent', ev.agent),
-              el('span', 'action', ev.action.replace(/_/g, ' ')), el('span', 'reason', ev.reason || ''));
-    trail.append(li);
-  }
-  if (stick) trail.scrollTop = trail.scrollHeight;
-  after = d.last_event_id;
-}
+  function render(d) {
+    $('question').textContent = d.question;
+    const st = $('status'); st.textContent = d.status; st.className = 'badge ' + d.status;
+    $('loops').textContent = d.loop_count ? `· ${d.loop_count} research loop${d.loop_count > 1 ? 's' : ''}` : '';
+    const total = Object.values(d.counts).reduce((a, b) => a + b, 0);
+    $('tally').textContent = total ? `· ${d.counts.supported || 0} of ${total} claims verified` : '';
+    $('error').textContent = d.error || '';
 
-function fill(box, items, showQuote) {
-  box.replaceChildren();
-  for (const c of items) {
-    const d = el('div', 'claim');
-    d.append(el('span', 'badge ' + c.verdict, c.verdict), document.createTextNode(' ' + c.text + ' '));
-    for (const s of c.sources) {
-      if (!/^https?:\/\//.test(s.url)) continue;
-      const a = el('a', '', s.domain); a.href = s.url; a.target = '_blank'; a.rel = 'noopener';
-      d.append(a, document.createTextNode(' '));
+    const ul = $('subqs'); ul.replaceChildren();
+    for (const s of d.sub_questions) {
+      const li = el('li', '', s.text + ' ');
+      li.append(el('span', 'muted', `(${s.verified_claims} verified, ${s.domains} sources)`));
+      ul.append(li);
     }
-    const note = showQuote ? (c.quote ? '“' + c.quote + '”' : '') : c.reason;
-    if (note) d.append(el('div', 'quote muted', note));
-    box.append(d);
-  }
-}
 
-async function showClaims() {
-  const claims = await (await fetch(`/runs/${RUN_ID}/claims`)).json();
-  const kept = claims.filter(c => c.verdict === 'supported');
-  const rejected = claims.filter(c => c.verdict !== 'supported');
-  fill($('kept'), kept, true); fill($('rejected'), rejected, false);
-  $('nkept').textContent = `(${kept.length})`; $('nrej').textContent = `(${rejected.length})`;
-  $('claims').hidden = false;
-}
-
-async function poll() {
-  try {
-    const res = await fetch(`/runs/${RUN_ID}?after=${after}`);
-    if (!res.ok) throw new Error('bad status');
-    const d = await res.json();
-    render(d);
-    if (d.status === 'done' || d.status === 'failed') {
-      finished = true;
-      if (d.status === 'done') { $('reportlink').href = `/runs/${RUN_ID}/report/view`; $('reportlink').hidden = false; }
-      await showClaims();
+    const trail = $('trail');
+    const stick = trail.scrollTop + trail.clientHeight >= trail.scrollHeight - 30;
+    for (const ev of d.events) {
+      const li = el('li', 'ev');
+      li.append(el('span', 'time', new Date(ev.ts).toLocaleTimeString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    hour12: false
+  })), el('span', 'agent', ev.agent),
+                el('span', 'action', ev.action.replace(/_/g, ' ')), el('span', 'reason', ev.reason || ''));
+      trail.append(li);
     }
-  } catch (e) { $('error').textContent = 'Connection problem, retrying…'; }
-  if (!finished) setTimeout(poll, 2000);
-}
-poll();
+    if (stick) trail.scrollTop = trail.scrollHeight;
+    after = d.last_event_id;
+  }
+
+  function fill(box, items, showQuote) {
+    box.replaceChildren();
+    for (const c of items) {
+      const d = el('div', 'claim');
+      d.append(el('span', 'badge ' + c.verdict, c.verdict), document.createTextNode(' ' + c.text + ' '));
+      for (const s of c.sources) {
+        if (!/^https?:\/\//.test(s.url)) continue;
+        const a = el('a', '', s.domain); a.href = s.url; a.target = '_blank'; a.rel = 'noopener';
+        d.append(a, document.createTextNode(' '));
+      }
+      const note = showQuote ? (c.quote ? '“' + c.quote + '”' : '') : c.reason;
+      if (note) d.append(el('div', 'quote muted', note));
+      box.append(d);
+    }
+  }
+
+  async function showClaims() {
+    const claims = await (await fetch(`/runs/${RUN_ID}/claims`)).json();
+    const kept = claims.filter(c => c.verdict === 'supported');
+    const rejected = claims.filter(c => c.verdict !== 'supported');
+    fill($('kept'), kept, true); fill($('rejected'), rejected, false);
+    $('nkept').textContent = `(${kept.length})`; $('nrej').textContent = `(${rejected.length})`;
+    $('claims').hidden = false;
+  }
+
+  async function poll() {
+    try {
+      const res = await fetch(`/runs/${RUN_ID}?after=${after}`);
+      if (!res.ok) throw new Error('bad status');
+      const d = await res.json();
+      render(d);
+      if (d.status === 'done' || d.status === 'failed') {
+        finished = true;
+        if (d.status === 'done') { $('reportlink').href = `/runs/${RUN_ID}/report/view`; $('reportlink').hidden = false; }
+        await showClaims();
+      }
+    } catch (e) { $('error').textContent = 'Connection problem, retrying…'; }
+    if (!finished) setTimeout(poll, 2000);
+  }
+  poll();
 </script>
 {% endblock %}
