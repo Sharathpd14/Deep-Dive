@@ -3,7 +3,7 @@
 {% block content %}
 <div class="actions noprint">
   <a href="/runs/{{ run_id }}/view">← Decision trail</a>
-  <a href="/runs/{{ run_id }}/report">Download Markdown</a>
+  <a href="/runs/{{ run_id }}/report">View Markdown</a>
   <button onclick="window.print()">Print / save as PDF</button>
 </div>
 <article class="report">{{ body|safe }}</article>
