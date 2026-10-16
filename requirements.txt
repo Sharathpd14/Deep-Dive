@@ -110,8 +110,12 @@ lxml==6.1.3
     #   trafilatura
 lxml-html-clean==0.4.5
     # via lxml
+markdown==3.11.1
+    # via deep-dive
 markupsafe==3.0.4
     # via jinja2
+nh3==0.3.7
+    # via deep-dive
 openai==3.31.0
     # via deep-dive
 opentelemetry-api==1.45.1
