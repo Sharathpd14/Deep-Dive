@@ -7,6 +7,8 @@ from urllib.parse import urlparse
 from db.connection import get_conn
 from models import Chunk, Claim, SubQuestion, TrailEvent, utcnow
 
+_DUMP_TABLES = ("sub_questions", "evidence", "claims", "trail_events")
+
 # ---------- helpers ----------
 
 def _next_id(conn, table: str, run_id: str, prefix: str) -> str:
@@ -273,3 +275,33 @@ def list_runs(limit: int = 8) -> list[dict]:
             "ORDER BY created_at DESC, rowid DESC LIMIT ?", (limit,)
         ).fetchall()
     return [dict(r) for r in rows]
+
+
+def export_run(run_id: str) -> dict:
+    with get_conn() as conn:
+        run = conn.execute("SELECT * FROM runs WHERE id = ?", (run_id,)).fetchone()
+        if not run:
+            raise ValueError(f"No run with id {run_id}")
+        dump = {"run": dict(run)}
+        for table in _DUMP_TABLES:
+            rows = conn.execute(f"SELECT * FROM {table} WHERE run_id = ? ORDER BY rowid", (run_id,))
+            dump[table] = [dict(r) for r in rows]
+    return dump
+
+
+def import_run(dump: dict) -> str:
+    """Insert a run exported by export_run. Does nothing if the run already exists."""
+    run_id = dump["run"]["id"]
+    with get_conn() as conn:
+        if conn.execute("SELECT 1 FROM runs WHERE id = ?", (run_id,)).fetchone():
+            return run_id
+        batches = [("runs", [dump["run"]])] + [(t, dump[t]) for t in _DUMP_TABLES]
+        for table, rows in batches:
+            columns = [r["name"] for r in conn.execute(f"PRAGMA table_info({table})")]
+            for row in rows:
+                cols = [c for c in columns if c in row and not (table == "trail_events" and c == "id")]
+                conn.execute(
+                    f"INSERT INTO {table} ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})",
+                    [row[c] for c in cols],
+                )
+    return run_id

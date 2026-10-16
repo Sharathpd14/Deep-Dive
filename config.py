@@ -1,3 +1,4 @@
+from pydantic import ValidationError, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -30,4 +31,27 @@ class Settings(BaseSettings):
     max_concurrent_runs: int = 2
     max_runs_per_hour: int = 10
     verifier_workers: int = 2
-settings = Settings()
+    
+    access_code: str = ""            # if set, starting a run requires this code
+    show_recent_runs: bool = True    # set false on a public deployment
+
+    @field_validator("mesh_api_key")
+    @classmethod
+    def _real_key(cls, v: str) -> str:
+        v = v.strip()
+        if not v or v == "rsk_replace_me":
+            raise ValueError("set a real Mesh API key")
+        return v
+
+def load_settings() -> Settings:
+    try:
+        return Settings()
+    except ValidationError as e:
+        names = ", ".join(str(err["loc"][0]).upper() for err in e.errors())
+        raise SystemExit(
+            f"DeepDive cannot start: missing or invalid setting(s): {names}.\n"
+            "Copy .env.example to .env and set MESH_API_KEY (it starts with rsk_)."
+        ) from None
+
+
+settings = load_settings()

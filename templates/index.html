@@ -6,9 +6,17 @@
 <form id="ask">
   <textarea id="q" rows="3" minlength="10" maxlength="500" required
     placeholder="What are the main risks of investing in the EV battery market in 2026?"></textarea>
+  {% if needs_code %}
+  <p><input id="code" type="password" placeholder="Access code" autocomplete="off"></p>
+  {% endif %}
   <p><button id="go" type="submit">Start research</button></p>
   <p id="msg" class="msg"></p>
 </form>
+
+{% if demo %}
+<p class="lead">Want to see a finished run first?
+  <a href="/runs/{{ demo.id }}/view">{{ demo.question }}</a></p>
+{% endif %}
 
 {% if runs %}
 <h2>Recent runs</h2>
@@ -25,8 +33,11 @@ document.getElementById('ask').addEventListener('submit', async (e) => {
   const btn = document.getElementById('go'), msg = document.getElementById('msg');
   btn.disabled = true; msg.textContent = 'Starting…';
   try {
+    const codeBox = document.getElementById('code');
+    const headers = {'Content-Type': 'application/json'};
+    if (codeBox) headers['X-Access-Code'] = codeBox.value;
     const res = await fetch('/runs', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
+      method: 'POST', headers,
       body: JSON.stringify({question: document.getElementById('q').value}),
     });
     const data = await res.json();

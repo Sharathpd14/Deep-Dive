@@ -1,16 +1,19 @@
+import secrets
 from collections import Counter
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 import markdown
 import nh3
-from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ConfigDict, Field
 
 import runner
+import seed
+from config import settings
 from coverage import verified_stats
 from db import store
 from db.connection import init_db
@@ -25,6 +28,7 @@ async def lifespan(app: FastAPI):
     stale = store.fail_stale_runs()
     if stale:
         print(f"Marked {stale} interrupted run(s) as failed")
+    seed.ensure_demo()
     yield
 
 
@@ -56,15 +60,23 @@ def health():
     return {"status": "ok"}
 
 
+def check_access(code: str | None) -> None:
+    if settings.access_code and not (
+        code and secrets.compare_digest(code.encode(), settings.access_code.encode())
+    ):
+        raise HTTPException(401, "A valid access code is required to start a run.")
+
+
 @app.post("/runs", status_code=202)
-def create_run(req: RunRequest, background: BackgroundTasks):
+def create_run(req: RunRequest, background: BackgroundTasks,
+               x_access_code: str | None = Header(default=None)):
+    check_access(x_access_code)
     try:
         run_id = runner.start(req.question)
     except runner.Busy as e:
         raise HTTPException(429, str(e))
     background.add_task(runner.execute, run_id)
     return {"run_id": run_id, "status_url": f"/runs/{run_id}", "view_url": f"/runs/{run_id}/view"}
-
 
 @app.get("/runs/{run_id}")
 def get_run(run_id: str, after: int = 0):
@@ -113,8 +125,9 @@ def get_report(run_id: str):
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
-    return templates.TemplateResponse(request, "index.html", {"runs": store.list_runs(8)})
-
+    runs = store.list_runs(8) if settings.show_recent_runs else []
+    return templates.TemplateResponse(request, "index.html", {
+        "runs": runs, "needs_code": bool(settings.access_code), "demo": seed.demo_run()})
 
 @app.get("/runs/{run_id}/view", response_class=HTMLResponse)
 def run_page(request: Request, run_id: str):

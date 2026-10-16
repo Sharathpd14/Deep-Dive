@@ -105,3 +105,20 @@ def test_interrupted_runs_are_marked_failed_on_startup():
     store.update_run(rid, status="running")
     assert store.fail_stale_runs() == 1
     assert store.get_run(rid)["status"] == "failed"
+    
+def test_access_code_is_required_when_configured(client, monkeypatch):
+    monkeypatch.setattr(settings, "access_code", "letmein")
+    assert client.post("/runs", json={"question": Q}).status_code == 401
+    assert client.post("/runs", json={"question": Q}, headers={"X-Access-Code": "nope"}).status_code == 401
+    assert client.post("/runs", json={"question": Q}, headers={"X-Access-Code": "letmein"}).status_code == 202
+
+
+def test_no_access_code_means_open(client):
+    assert client.post("/runs", json={"question": Q}).status_code == 202
+
+
+def test_recent_runs_can_be_hidden(client, monkeypatch):
+    store.create_run("A fairly private research question")
+    assert "A fairly private research question" in client.get("/").text
+    monkeypatch.setattr(settings, "show_recent_runs", False)
+    assert "A fairly private research question" not in client.get("/").text

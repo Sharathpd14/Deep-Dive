@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: deepdive
+    runtime: docker
+    plan: free                  # change to "starter" and uncomment the disk below to keep data
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: MESH_API_KEY
+        sync: false             # entered in the dashboard, never stored in git
+      - key: ACCESS_CODE
+        sync: false
+      - key: SHOW_RECENT_RUNS
+        value: "false"
+      - key: MAX_CONCURRENT_RUNS
+        value: "1"
+      - key: MAX_RUNS_PER_HOUR
+        value: "6"
+      - key: PLANNER_MODEL
+        value: openai/gpt-4.1-mini
+      - key: DRAFTER_MODEL
+        value: openai/gpt-4.1-mini
+      - key: VERIFIER_MODEL
+        value: openai/gpt-4.1-mini
+      - key: SYNTHESIZER_MODEL
+        value: openai/gpt-4.1-mini
+      - key: CHEAP_MODEL
+        value: openai/gpt-4.1-nano
+    # disk:
+    #   name: data
+    #   mountPath: /app/data
+    #   sizeGB: 1

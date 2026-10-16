@@ -1,0 +1,13 @@
+name: tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      MESH_API_KEY: rsk_ci_dummy_key      # tests never call the real API
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      - run: uv run pytest -q
+      - run: uv run ruff check .
