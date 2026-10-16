@@ -138,7 +138,7 @@ def verify(run_id: str, round_: int = 0) -> dict:
     claims = store.list_claims(run_id, verdict="pending")
     jobs = [(c, store.get_chunks(run_id, c.evidence_ids)) for c in claims]
 
-    with ThreadPoolExecutor(max_workers=WORKERS) as pool:
+    with ThreadPoolExecutor(max_workers=settings.verifier_workers) as pool:
         results = list(pool.map(_work, jobs))
 
     counts: Counter = Counter()

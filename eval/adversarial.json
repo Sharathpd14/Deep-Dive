@@ -1,0 +1,54 @@
+{
+  "meta": {
+    "date": "2026-10-16",
+    "verifier_model": "openai/gpt-4.1-mini",
+    "runs": 12,
+    "per_type": 20,
+    "errors": 0
+  },
+  "stats": {
+    "number_swap": {
+      "n": 20,
+      "llm_caught": 17,
+      "final_caught": 20
+    },
+    "reversal": {
+      "n": 20,
+      "llm_caught": 19,
+      "final_caught": 19
+    },
+    "overreach": {
+      "n": 20,
+      "llm_caught": 20,
+      "final_caught": 20
+    },
+    "wrong_source": {
+      "n": 20,
+      "llm_caught": 20,
+      "final_caught": 20
+    },
+    "control": {
+      "n": 20,
+      "llm_accepted": 20,
+      "final_accepted": 20
+    }
+  },
+  "missed": [
+    {
+      "id": "reversal-17",
+      "kind": "reversal",
+      "run_id": "243a82838c47",
+      "origin": "C30",
+      "sub_q_id": "Q4",
+      "original": "Reliance on DAC could reduce the urgency of reducing emissions at the source.",
+      "text": "Reliance on DAC could increase the urgency of reducing emissions at the source.",
+      "evidence_ids": [
+        "E66"
+      ],
+      "expected": "reject",
+      "llm_verdict": "supported",
+      "final_verdict": "supported",
+      "code_override": false
+    }
+  ]
+}

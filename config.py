@@ -29,4 +29,5 @@ class Settings(BaseSettings):
     min_sentence_coverage: float = 0.85
     max_concurrent_runs: int = 2
     max_runs_per_hour: int = 10
+    verifier_workers: int = 2
 settings = Settings()

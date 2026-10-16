@@ -1,10 +1,14 @@
 import json
 import re
+import threading
 
 from openai import OpenAI
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from config import settings
+
+USAGE = {"calls": 0, "tokens": 0}
+_usage_lock = threading.Lock()
 
 client = OpenAI(base_url=settings.mesh_base_url, api_key=settings.mesh_api_key)
 
@@ -13,6 +17,10 @@ def chat(messages: list[dict], model: str, temperature: float = 0.2) -> str:
     resp = client.chat.completions.create(
         model=model, messages=messages, temperature=temperature
     )
+    usage = getattr(resp, "usage", None)
+    with _usage_lock:
+        USAGE["calls"] += 1
+        USAGE["tokens"] += getattr(usage, "total_tokens", 0) or 0
     return resp.choices[0].message.content or ""
 
 def chat_json(messages: list[dict], model: str, temperature: float = 0.0) -> dict:
