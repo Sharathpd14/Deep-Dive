@@ -1,47 +1,23 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="home-layout">
-  <section class="home-main">
-    <p class="eyebrow">Research, with receipts</p>
-    <h1>Ask a research question</h1>
-    <p class="lead">Claims that their source does not support are removed, and thin areas trigger more research.</p>
+<h1>Ask a research question</h1>
+<p class="lead">Claims that their source does not support are removed, and thin areas trigger more research.</p>
 
-    <div class="card ask-card">
-      <form id="ask">
-        <label for="q">What would you like to understand?</label>
-        <textarea id="q" rows="3" minlength="10" maxlength="500" required
-          placeholder="What are the main risks of investing in the EV battery market in 2026?"></textarea>
-        <p class="form-hint">Use a specific question for a more focused report.</p>
-        {% if needs_code %}
-        <p><input id="code" type="password" placeholder="Access code" autocomplete="off" aria-label="Access code"></p>
-        {% endif %}
-        <p><button id="go" type="submit">Start research</button></p>
-        <p id="msg" class="msg" role="status" aria-live="polite"></p>
-      </form>
-    </div>
-  </section>
+<form id="ask">
+  <textarea id="q" rows="3" minlength="10" maxlength="500" required
+    placeholder="What are the main risks of investing in the EV battery market in 2026?"></textarea>
+  <p><button id="go" type="submit">Start research</button></p>
+  <p id="msg" class="msg"></p>
+</form>
 
-  <aside class="home-aside">
-    {% if demo %}
-    <section class="card side-card">
-      <p class="eyebrow">See an example</p>
-      <h2>Explore a completed run</h2>
-      <a class="demo-link" href="/runs/{{ demo.id }}/view">{{ demo.question }}</a>
-    </section>
-    {% endif %}
-
-    {% if runs %}
-    <section class="card side-card">
-      <h2>Recent runs</h2>
-      <ul class="runs">
-        {% for r in runs[:3] %}
-        <li><a href="/runs/{{ r.id }}/view">{{ r.question }}</a> <span class="badge {{ r.status }}">{{ r.status }}</span></li>
-        {% endfor %}
-      </ul>
-    </section>
-    {% endif %}
-  </aside>
-</div>
+{% if runs %}
+<h2>Recent runs</h2>
+<ul class="runs">
+  {% for r in runs %}
+  <li><a href="/runs/{{ r.id }}/view">{{ r.question }}</a> <span class="badge {{ r.status }}">{{ r.status }}</span></li>
+  {% endfor %}
+</ul>
+{% endif %}
 
 <script>
 document.getElementById('ask').addEventListener('submit', async (e) => {
@@ -49,11 +25,8 @@ document.getElementById('ask').addEventListener('submit', async (e) => {
   const btn = document.getElementById('go'), msg = document.getElementById('msg');
   btn.disabled = true; msg.textContent = 'Starting…';
   try {
-    const codeBox = document.getElementById('code');
-    const headers = {'Content-Type': 'application/json'};
-    if (codeBox) headers['X-Access-Code'] = codeBox.value;
     const res = await fetch('/runs', {
-      method: 'POST', headers,
+      method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({question: document.getElementById('q').value}),
     });
     const data = await res.json();
