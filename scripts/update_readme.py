@@ -16,7 +16,7 @@ EXAMPLE = ROOT / "docs" / "rejected-claim-example.md"
 
 
 def inject(text: str, name: str, body: str) -> str:
-    pattern = re.compile(rf"(<!-- {name}:START -->).*?(<!-- {name}:END -->)", re.S)
+    pattern = re.compile(rf"(<!-- {name}:START -->).*?(<!-- {name}:END -->)", re.DOTALL)
     if not pattern.search(text):
         raise SystemExit(f"Marker {name} not found in README.md")
     return pattern.sub(lambda m: f"{m.group(1)}\n{body.strip()}\n{m.group(2)}", text)
@@ -26,7 +26,7 @@ def results_body(results_md: str) -> str:
     """Everything between the title and the Limitations section, with headings pushed down a level."""
     text = results_md.split("\n", 1)[1] if results_md.startswith("# ") else results_md
     text = text.split("## 5.")[0]
-    return re.sub(r"^## ", "### ", text, flags=re.M)
+    return re.sub(r"^## ", "### ", text, flags=re.MULTILINE)
 
 
 def example_body(example_md: str) -> str:

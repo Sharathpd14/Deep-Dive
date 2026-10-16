@@ -13,9 +13,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from db import store  # noqa: E402
-from db.connection import get_conn, init_db  # noqa: E402
-from textcheck import coverage  # noqa: E402
+from db import store
+from db.connection import get_conn, init_db
+from textcheck import coverage
 
 OUT = ROOT / "docs" / "rejected-claim-example.md"
 SENTENCE = re.compile(r"(?<=[.!?])\s+|\n+")
@@ -52,9 +52,11 @@ def write_example(run_id: str, event) -> Path:
         f"**Claim written by the drafter:**\n\n> {claim.text}",
         f"**Cited source:**\n\n{sources}",
         "**What the verifier model said:** *supported*, and it returned a quote.",
-        f"**What the code found:**\n\n```\n{event.reason}\n```\n\nThe quote the model returned does not appear "
-        "in the cited text, so the claim was marked unsupported and left out of the report. "
-        "The trail records this as a `code_override`.",
+        (
+            f"**What the code found:**\n\n```\n{event.reason}\n```\n\nThe quote the model returned does not appear "
+            "in the cited text, so the claim was marked unsupported and left out of the report. "
+            "The trail records this as a `code_override`."
+        ),
         f"**The closest passages in the cited source:**\n\n{passages}",
     ]
     if verified:
